@@ -1,0 +1,23 @@
+# Binaries
+bin/
+bootstrap
+*.exe
+
+# Dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.*
+
+# Temporary
+tmp/
