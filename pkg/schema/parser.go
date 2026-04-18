@@ -53,11 +53,17 @@ func (p *typeParser) parseDecimal() (DataType, error) {
 		return nil, err
 	}
 	precisionStr := p.readDigits()
+	if precisionStr == "" {
+		return nil, fmt.Errorf("expected precision at position %d", p.pos)
+	}
 	precision, _ := strconv.Atoi(precisionStr)
 	if err := p.expect(","); err != nil {
 		return nil, err
 	}
 	scaleStr := p.readDigits()
+	if scaleStr == "" {
+		return nil, fmt.Errorf("expected scale at position %d", p.pos)
+	}
 	scale, _ := strconv.Atoi(scaleStr)
 	if err := p.expect(")"); err != nil {
 		return nil, err

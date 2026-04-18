@@ -49,6 +49,16 @@ func TestParseType(t *testing.T) {
 		{"struct<name:string", nil, true},
 		{"array<string", nil, true},
 		{"decimal(10)", nil, true},
+		{"string extra", nil, true},
+		{"", nil, true},
+		{"array<string,", nil, true},
+		{"map<string,>", nil, true},
+		{"struct<:string>", nil, true},
+		{"struct<name:>", nil, true},
+		{"struct<name:string,>", nil, true},
+		{"decimal(a,b)", nil, true},
+		{"decimal(10,)", nil, true},
+		{"map<string,int", nil, true},
 	}
 
 	for _, tt := range tests {

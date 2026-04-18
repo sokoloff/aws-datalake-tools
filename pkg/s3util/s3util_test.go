@@ -2,6 +2,7 @@ package s3util
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -107,9 +108,13 @@ func TestFormatS3URI_RoundTrip(t *testing.T) {
 type mockListObjects struct {
 	pages []s3.ListObjectsV2Output
 	calls int
+	err   error
 }
 
 func (m *mockListObjects) ListObjectsV2(_ context.Context, _ *s3.ListObjectsV2Input, _ ...func(*s3.Options)) (*s3.ListObjectsV2Output, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	page := m.pages[m.calls]
 	m.calls++
 	return &page, nil
@@ -144,6 +149,17 @@ func TestListObjects(t *testing.T) {
 	assert.Equal(t, "prefix/c.parquet", objects[2].Key)
 	assert.Equal(t, int64(200), objects[1].Size)
 	assert.Equal(t, 2, mock.calls)
+}
+
+func TestListObjects_Error(t *testing.T) {
+	mock := &mockListObjects{
+		err: fmt.Errorf("s3 error"),
+	}
+
+	objects, err := ListObjects(context.Background(), mock, "bucket", "prefix/")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "s3 error")
+	assert.Nil(t, objects)
 }
 
 func TestListObjects_Empty(t *testing.T) {
