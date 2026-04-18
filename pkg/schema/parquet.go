@@ -17,13 +17,21 @@ type S3GetObjectAPI interface {
 }
 
 type s3ReaderAt struct {
-	ctx    context.Context
-	api    S3GetObjectAPI
-	bucket string
-	key    string
+	ctx        context.Context
+	api        S3GetObjectAPI
+	bucket     string
+	key        string
+	tail       []byte
+	tailOffset int64
 }
 
 func (r *s3ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+	// If the requested range is within the cached tail, serve it from memory
+	if r.tail != nil && off >= r.tailOffset && off+int64(len(p)) <= r.tailOffset+int64(len(r.tail)) {
+		copy(p, r.tail[off-r.tailOffset:])
+		return len(p), nil
+	}
+
 	rangeHeader := fmt.Sprintf("bytes=%d-%d", off, off+int64(len(p))-1)
 	resp, err := r.api.GetObject(r.ctx, &s3.GetObjectInput{
 		Bucket: aws.String(r.bucket),
@@ -37,20 +45,72 @@ func (r *s3ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return io.ReadFull(resp.Body, p)
 }
 
-// ReadParquetSchemaFromS3 reads only the footer of a parquet file from S3 to extract its schema.
-func ReadParquetSchemaFromS3(ctx context.Context, api S3GetObjectAPI, bucket, key string) ([]Column, error) {
+// NewS3ReaderAt creates an io.ReaderAt for an S3 object and returns its size.
+// It pre-fetches the tail of the file to optimize parquet metadata reads.
+func NewS3ReaderAt(ctx context.Context, api S3GetObjectAPI, bucket, key string) (io.ReaderAt, int64, error) {
 	head, err := api.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("head object: %w", err)
+		return nil, 0, fmt.Errorf("head object: %w", err)
+	}
+	if head == nil {
+		return nil, 0, fmt.Errorf("head object returned nil response")
 	}
 
+	size := aws.ToInt64(head.ContentLength)
 	reader := &s3ReaderAt{ctx: ctx, api: api, bucket: bucket, key: key}
-	file, err := parquet.OpenFile(reader, *head.ContentLength)
+
+	// Pre-fetch the tail of the file (last 128KB) to optimize metadata reads
+	const tailSize = 128 * 1024
+	if size > 0 {
+		fetchSize := int64(tailSize)
+		if size < fetchSize {
+			fetchSize = size
+		}
+		offset := size - fetchSize
+		
+		rangeHeader := fmt.Sprintf("bytes=%d-%d", offset, size-1)
+		resp, err := api.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+			Range:  aws.String(rangeHeader),
+		})
+		if err == nil {
+			defer resp.Body.Close()
+			tailData, readErr := io.ReadAll(resp.Body)
+			if readErr == nil {
+				reader.tail = tailData
+				reader.tailOffset = offset
+			}
+		}
+		// If pre-fetch fails, we'll just fall back to normal ReadAt (handled gracefully)
+	}
+
+	return reader, size, nil
+}
+
+// OpenParquetFileS3 opens a parquet file from S3.
+func OpenParquetFileS3(ctx context.Context, api S3GetObjectAPI, bucket, key string) (*parquet.File, error) {
+	reader, size, err := NewS3ReaderAt(ctx, api, bucket, key)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := parquet.OpenFile(reader, size)
 	if err != nil {
 		return nil, fmt.Errorf("opening parquet file: %w", err)
+	}
+
+	return file, nil
+}
+
+// ReadParquetSchemaFromS3 reads only the footer of a parquet file from S3 to extract its schema.
+func ReadParquetSchemaFromS3(ctx context.Context, api S3GetObjectAPI, bucket, key string) ([]Column, error) {
+	file, err := OpenParquetFileS3(ctx, api, bucket, key)
+	if err != nil {
+		return nil, err
 	}
 
 	return ParquetSchemaToColumns(file.Schema())
@@ -197,6 +257,9 @@ func parquetNodeToDataTypeInternal(node parquet.Field) (DataType, error) {
 		return PrimitiveType{Kind: Double}, nil
 	case parquet.ByteArray, parquet.FixedLenByteArray:
 		return PrimitiveType{Kind: Binary}, nil
+	case parquet.Int96:
+		// INT96 is legacy Impala/Hive timestamp representation
+		return PrimitiveType{Kind: Timestamp}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported parquet type: %v", node.Type())

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"text/tabwriter"
+
+	"github.com/sokoloff/aws-datalake-tools/pkg/s3util"
 )
 
 // DescribeOutput contains the result of describing a Glue table.
@@ -31,7 +33,7 @@ func DescribeFile(ctx context.Context, api S3GetObjectAPI, bucket, key string) (
 		Schema: &TableSchema{
 			Table:    key,
 			Columns:  cols,
-			Location: fmt.Sprintf("s3://%s/%s", bucket, key),
+			Location: s3util.FormatS3URI(bucket, key),
 		},
 	}, nil
 }
@@ -221,18 +223,4 @@ type DiffConfig struct {
 	Database string
 	Table    string
 	S3Path   string // s3://bucket/key
-}
-
-// ParseS3Path splits an s3://bucket/key string.
-func ParseS3Path(path string) (bucket, key string, err error) {
-	if len(path) < 5 || path[:5] != "s3://" {
-		return "", "", fmt.Errorf("invalid s3 path: %s", path)
-	}
-	path = path[5:]
-	for i := 0; i < len(path); i++ {
-		if path[i] == '/' {
-			return path[:i], path[i+1:], nil
-		}
-	}
-	return path, "", nil
 }

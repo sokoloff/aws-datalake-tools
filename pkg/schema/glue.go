@@ -28,6 +28,13 @@ func FetchTableSchema(ctx context.Context, api GlueTableAPI, database, table str
 	}
 
 	t := resp.Table
+	if t == nil {
+		return nil, fmt.Errorf("table %s.%s not found", database, table)
+	}
+	if t.StorageDescriptor == nil {
+		return nil, fmt.Errorf("table %s.%s has no storage descriptor", database, table)
+	}
+
 	columns, err := columnsFromGlue(t.StorageDescriptor.Columns)
 	if err != nil {
 		return nil, fmt.Errorf("parsing columns for %s.%s: %w", database, table, err)
@@ -108,9 +115,17 @@ func UpdateTableSchema(ctx context.Context, api GlueTableAPI, database, table st
 	}
 
 	t := resp.Table
+	if t == nil {
+		return fmt.Errorf("table %s.%s not found for update", database, table)
+	}
+	if t.StorageDescriptor == nil {
+		return fmt.Errorf("table %s.%s has no storage descriptor", database, table)
+	}
+
 	t.StorageDescriptor.Columns = columnsToGlue(columns)
 
 	_, err = api.UpdateTable(ctx, &glue.UpdateTableInput{
+
 		DatabaseName: aws.String(database),
 		Name:         aws.String(table),
 		TableInput: &gluetypes.TableInput{

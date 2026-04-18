@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -70,13 +71,13 @@ func ListObjects(ctx context.Context, client ListObjectsAPI, bucket, prefix stri
 
 		for _, obj := range output.Contents {
 			objects = append(objects, Object{
-				Key:          *obj.Key,
-				Size:         *obj.Size,
-				LastModified: *obj.LastModified,
+				Key:          aws.ToString(obj.Key),
+				Size:         aws.ToInt64(obj.Size),
+				LastModified: aws.ToTime(obj.LastModified),
 			})
 		}
 
-		if !*output.IsTruncated {
+		if !aws.ToBool(output.IsTruncated) {
 			break
 		}
 		input.ContinuationToken = output.NextContinuationToken

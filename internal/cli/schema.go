@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sokoloff/aws-datalake-tools/pkg/s3util"
 	"github.com/sokoloff/aws-datalake-tools/pkg/schema"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +25,7 @@ var describeCmd = &cobra.Command{
 		native, _ := cmd.Flags().GetBool("native")
 
 		if file != "" {
-			bucket, key, err := schema.ParseS3Path(file)
+			bucket, key, err := s3util.ParseS3URI(file)
 			if err != nil {
 				return err
 			}
@@ -78,7 +79,7 @@ var diffCmd = &cobra.Command{
 			return fmt.Errorf("database, table, and file are required")
 		}
 
-		bucket, key, err := schema.ParseS3Path(filePath)
+		bucket, key, err := s3util.ParseS3URI(filePath)
 		if err != nil {
 			return err
 		}
