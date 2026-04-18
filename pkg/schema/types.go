@@ -144,12 +144,12 @@ func (t StructType) Pretty(indent int, native bool) string {
 		if i == len(t.Fields)-1 {
 			suffix = ""
 		}
-		
+
 		fieldTypeStr := f.Type.Pretty(indent+1, native)
 		if native && f.NativeType != "" {
 			fieldTypeStr = fmt.Sprintf("%s [%s]", fieldTypeStr, f.NativeType)
 		}
-		
+
 		lines = append(lines, fmt.Sprintf("%s%s: %s%s", fieldPad, f.Name, fieldTypeStr, suffix))
 	}
 	lines = append(lines, pad+">")

@@ -39,7 +39,7 @@ func TestColumnsToParquetGroup(t *testing.T) {
 
 func TestColumnsToParquetGroup_Unsupported(t *testing.T) {
 	type customType struct{ schema.DataType }
-	
+
 	t.Run("top level", func(t *testing.T) {
 		cols := []schema.Column{{Name: "err", Type: customType{}}}
 		_, err := ColumnsToParquetGroup(cols)
@@ -71,5 +71,3 @@ func TestColumnsToParquetGroup_Unsupported(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
-
-

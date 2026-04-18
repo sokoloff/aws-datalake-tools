@@ -88,7 +88,7 @@ func TestCompareSchemas(t *testing.T) {
 		plan := CompareSchemas(glue, file)
 		assert.False(t, plan.Compatible)
 		assert.NotEmpty(t, plan.Diffs)
-		
+
 		foundID := false
 		foundKey := false
 		for _, d := range plan.Diffs {
@@ -136,4 +136,3 @@ func TestIsTypeCoercible(t *testing.T) {
 		})
 	}
 }
-

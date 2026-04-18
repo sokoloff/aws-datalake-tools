@@ -48,7 +48,7 @@ func TestNew_Error(t *testing.T) {
 	// Actually, let's just test that the error branch CAN be reached.
 	// One way is to set an invalid duration for some timeout env vars.
 	t.Setenv("AWS_MAX_ATTEMPTS", "not-a-number")
-	
+
 	_, err := New(context.Background(), Config{})
 	assert.Error(t, err)
 }

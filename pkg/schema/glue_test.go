@@ -140,7 +140,7 @@ func TestFetchTableSchema_Errors(t *testing.T) {
 		_, err := FetchTableSchema(ctx, api, "db", "tbl")
 		assert.Error(t, err)
 	})
-	
+
 	t.Run("malformed type", func(t *testing.T) {
 		api := new(mockGlueAPI)
 		api.On("GetTable", ctx, mock.Anything).Return(&glue.GetTableOutput{
@@ -190,5 +190,3 @@ func TestUpdateTableSchema(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
-
-

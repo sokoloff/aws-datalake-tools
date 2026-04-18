@@ -70,7 +70,7 @@ func NewS3ReaderAt(ctx context.Context, api S3GetObjectAPI, bucket, key string) 
 			fetchSize = size
 		}
 		offset := size - fetchSize
-		
+
 		rangeHeader := fmt.Sprintf("bytes=%d-%d", offset, size-1)
 		resp, err := api.GetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(bucket),

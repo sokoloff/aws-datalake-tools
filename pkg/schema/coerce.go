@@ -62,7 +62,7 @@ func CompareSchemas(glueCols, fileCols []Column) *CoercionPlan {
 		if fi, ok := fileColMap[gc.Name]; ok {
 			plan.ColumnMapping[i] = fi
 			fc := fileCols[fi]
-			
+
 			if !gc.Type.Equal(fc.Type) {
 				if !IsTypeCoercible(fc.Type, gc.Type) {
 					// Pinpoint the mismatch

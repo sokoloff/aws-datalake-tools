@@ -31,7 +31,7 @@ func (m *mockS3API) HeadObject(ctx context.Context, params *s3.HeadObjectInput, 
 func TestS3ReaderAt_TailOptimization(t *testing.T) {
 	ctx := context.Background()
 	api := new(mockS3API)
-	
+
 	tailData := []byte("this is the tail of the file")
 	r := &s3ReaderAt{
 		ctx:        ctx,
@@ -200,15 +200,59 @@ func TestS3ReaderAt_ReadAtError(t *testing.T) {
 }
 
 func TestParquetNodeToDataType_Complex(t *testing.T) {
-	schema := parquet.NewSchema("complex", parquet.Group{
-		"map": parquet.Map(parquet.String(), parquet.Int(32)),
-		"struct": parquet.Group{
-			"f1": parquet.Int(64),
-		},
-	})
-	cols, err := ParquetSchemaToColumns(schema)
+	type Row struct {
+		Map    map[string]int32 `parquet:"map"`
+		Nested [][]string       `parquet:"nested,list,element=list,element=element"`
+		Struct struct {
+			F1 int64 `parquet:"f1"`
+		} `parquet:"struct"`
+	}
+
+	var buf bytes.Buffer
+	writer := parquet.NewWriter(&buf, parquet.SchemaOf(Row{}))
+	writer.Write(Row{})
+	writer.Close()
+
+	reader := bytes.NewReader(buf.Bytes())
+	file, err := parquet.OpenFile(reader, int64(buf.Len()))
 	assert.NoError(t, err)
-	assert.Len(t, cols, 2)
+
+	cols, err := ParquetSchemaToColumns(file.Schema())
+	assert.NoError(t, err)
+
+	colMap := make(map[string]Column)
+	for _, c := range cols {
+		colMap[c.Name] = c
+	}
+
+	assert.IsType(t, MapType{}, colMap["map"].Type)
+	assert.IsType(t, ArrayType{}, colMap["nested"].Type)
+	assert.IsType(t, ArrayType{}, colMap["nested"].Type.(ArrayType).ElementType)
+	assert.IsType(t, StructType{}, colMap["struct"].Type)
+}
+
+func TestParquetNodeToDataType_UintFallbacks(t *testing.T) {
+	tests := []struct {
+		name string
+		node parquet.Node
+		want PrimitiveKind
+	}{
+		{"uint8", parquet.Uint(8), Int},
+		{"uint16", parquet.Uint(16), Int},
+		{"uint32", parquet.Uint(32), Int},
+		{"uint64", parquet.Uint(64), BigInt},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// parquet-go logic: parquet.Uint(32) will have LogicalType.Integer.IsSigned = false
+			// which should trigger fallback to physical type in parquetNodeToDataTypeInternal
+			schema := parquet.NewSchema("test", parquet.Group{"col": tt.node})
+			cols, err := ParquetSchemaToColumns(schema)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, cols[0].Type.(PrimitiveType).Kind)
+		})
+	}
 }
 
 func TestParquetNodeToDataType_StructFallback(t *testing.T) {
@@ -229,7 +273,7 @@ func TestParquetNodeToDataType_Unsupported(t *testing.T) {
 	// Hard to produce with parquet-go DSL, but we can try INT96 with non-timestamp logical type if it existed.
 	// Actually, just cover the error path in ParquetSchemaToColumns by mocking if possible,
 	// or find a type parquet-go supports but we don't.
-	
+
 	// parquet.FixedLenByteArray with no logical type is covered as Binary.
 	// parquet.Int96 is covered as Timestamp.
 }
@@ -254,9 +298,3 @@ func TestParquetNodeToDataType_EdgeCases(t *testing.T) {
 		})
 	}
 }
-
-
-
-
-
-

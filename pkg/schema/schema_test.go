@@ -37,7 +37,7 @@ func TestFormatSchema(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "id")
 	assert.Contains(t, output, "bigint")
-	
+
 	buf.Reset()
 	err = FormatSchema(&buf, s, true)
 	assert.NoError(t, err)
@@ -50,7 +50,7 @@ func TestDescribeFile(t *testing.T) {
 	api := new(mockS3API)
 	api.On("HeadObject", ctx, mock.Anything).Return(&s3.HeadObjectOutput{ContentLength: aws.Int64(10)}, nil)
 	api.On("GetObject", ctx, mock.Anything).Return(&s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(nil))}, nil)
-	
+
 	// Open will fail but we want to see it reached
 	_, err := DescribeFile(ctx, api, "b", "k")
 	assert.Error(t, err)
@@ -91,7 +91,7 @@ func TestDescribe_Error(t *testing.T) {
 func TestDescribeFile_Success(t *testing.T) {
 	ctx := context.Background()
 	api := new(mockS3API)
-	
+
 	type Row struct {
 		ID int32 `parquet:"id"`
 	}
@@ -103,7 +103,7 @@ func TestDescribeFile_Success(t *testing.T) {
 
 	api.On("HeadObject", ctx, mock.Anything).Return(&s3.HeadObjectOutput{ContentLength: aws.Int64(int64(len(data)))}, nil)
 	api.On("GetObject", ctx, mock.Anything).Return(&s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(data))}, nil)
-	
+
 	out, err := DescribeFile(ctx, api, "b", "k")
 	assert.NoError(t, err)
 	assert.NotNil(t, out.Schema)
@@ -156,7 +156,7 @@ func TestDiff_ErrorFile(t *testing.T) {
 	}, nil)
 
 	s3API.On("HeadObject", ctx, mock.Anything).Return((*s3.HeadObjectOutput)(nil), fmt.Errorf("err"))
-	
+
 	_, err := Diff(ctx, glueAPI, s3API, "db", "tbl", "b", "k")
 	assert.Error(t, err)
 }
@@ -192,7 +192,7 @@ func TestFormatDiff(t *testing.T) {
 		},
 	}
 	assert.NoError(t, FormatDiff(io.Discard, d))
-	
+
 	d.Plan.Compatible = true
 	d.Plan.Diffs = nil
 	assert.NoError(t, FormatDiff(io.Discard, d))

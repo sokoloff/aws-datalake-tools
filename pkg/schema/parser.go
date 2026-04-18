@@ -120,14 +120,14 @@ func (p *typeParser) parseStruct() (DataType, error) {
 		if err := p.expect(":"); err != nil {
 			return nil, err
 		}
-		
+
 		typeStart := p.pos
 		fieldType, err := p.parse()
 		if err != nil {
 			return nil, err
 		}
 		typeEnd := p.pos
-		
+
 		fields = append(fields, StructField{
 			Name:       fieldName,
 			Type:       fieldType,

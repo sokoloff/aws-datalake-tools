@@ -40,14 +40,14 @@ func TestBuildPlan_GlueSuccess(t *testing.T) {
 	ctx := context.Background()
 	s3api := newFakeS3()
 	glueapi := new(mockGlueAPI)
-	
+
 	type Row struct{ ID int }
 	buf := new(bytes.Buffer)
 	pw := parquet.NewGenericWriter[Row](buf)
 	pw.Write([]Row{{1}})
 	pw.Close()
 	s3api.put("b", "s/f1.parquet", buf.Bytes())
-	
+
 	glueapi.On("GetTable", ctx, mock.Anything).Return(&glue.GetTableOutput{
 		Table: &gluetypes.Table{
 			StorageDescriptor: &gluetypes.StorageDescriptor{
@@ -67,11 +67,9 @@ func TestBuildPlan_GlueSuccess(t *testing.T) {
 	assert.Equal(t, ModeGlueCoerced, p.Mode)
 }
 
-
-
 func TestBuildPlan_Errors(t *testing.T) {
 	ctx := context.Background()
-	
+
 	t.Run("invalid source uri", func(t *testing.T) {
 		_, err := BuildPlan(ctx, Deps{}, Config{SourceURI: "invalid"})
 		assert.Error(t, err)
@@ -97,21 +95,53 @@ func TestBuildPlan_Errors(t *testing.T) {
 
 	t.Run("validation schema fail", func(t *testing.T) {
 		s3api := newFakeS3()
-		// First file is valid
-		type row struct{ ID int }
+		type Row struct{ ID int }
 		buf := new(bytes.Buffer)
-		pw := parquet.NewGenericWriter[row](buf)
-		pw.Write([]row{{1}})
+		pw := parquet.NewGenericWriter[Row](buf)
+		pw.Write([]Row{{1}})
 		pw.Close()
 		s3api.put("b", "s/f1.parquet", buf.Bytes())
-		// Second file is invalid
 		s3api.put("b", "s/f2.parquet", []byte("invalid"))
-		
+
 		_, err := BuildPlan(ctx, Deps{S3: s3api}, Config{SourceURI: "s3://b/s", TargetURI: "s3://b/t"})
 		assert.Error(t, err)
 	})
-}
 
+	t.Run("glue fetch fail", func(t *testing.T) {
+		glueapi := new(mockGlueAPI)
+		s3api := newFakeS3()
+		glueapi.On("GetTable", ctx, mock.Anything).Return((*glue.GetTableOutput)(nil), assert.AnError)
+		_, err := BuildPlan(ctx, Deps{S3: s3api, Glue: glueapi}, Config{
+			SourceURI: "s3://b/s",
+			TargetURI: "s3://b/t",
+			Database:  "db",
+			Table:     "tbl",
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("incompatible schemas", func(t *testing.T) {
+		s3api := newFakeS3()
+		type Row1 struct{ ID int32 }
+		type Row2 struct{ ID string }
+
+		buf1 := new(bytes.Buffer)
+		pw1 := parquet.NewGenericWriter[Row1](buf1)
+		pw1.Write([]Row1{{1}})
+		pw1.Close()
+		s3api.put("b", "s/f1.parquet", buf1.Bytes())
+
+		buf2 := new(bytes.Buffer)
+		pw2 := parquet.NewGenericWriter[Row2](buf2)
+		pw2.Write([]Row2{{"a"}})
+		pw2.Close()
+		s3api.put("b", "s/f2.parquet", buf2.Bytes())
+
+		_, err := BuildPlan(ctx, Deps{S3: s3api}, Config{SourceURI: "s3://b/s", TargetURI: "s3://b/t"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "incompatible schemas")
+	})
+}
 
 func TestCompactionPlan_Describe(t *testing.T) {
 	p := &CompactionPlan{
@@ -120,7 +150,7 @@ func TestCompactionPlan_Describe(t *testing.T) {
 		Mode:         ModePassThrough,
 	}
 	p.Describe(io.Discard)
-	
+
 	p.Mode = ModeGlueCoerced
 	p.Incompatible = []string{"err1"}
 	p.Describe(io.Discard)

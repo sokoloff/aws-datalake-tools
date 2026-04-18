@@ -25,7 +25,7 @@ func ValidateCoercion(targetCols, fileCols []schema.Column) (string, error) {
 	sb.WriteString("schema incompatible:\n")
 	for _, diff := range plan.Diffs {
 		if diff.Kind == schema.DiffTypeMismatch {
-			sb.WriteString(fmt.Sprintf("  - column '%s' type mismatch: cannot coerce file type %s to target type %s\n", 
+			sb.WriteString(fmt.Sprintf("  - column '%s' type mismatch: cannot coerce file type %s to target type %s\n",
 				diff.FullPath(), diff.FileType, diff.GlueType))
 		}
 	}

@@ -113,10 +113,10 @@ func TestTypes_StringAndPretty(t *testing.T) {
 	assert.NotEmpty(t, s.String())
 	assert.NotEmpty(t, s.Pretty(0, true))
 	assert.NotEmpty(t, s.Pretty(0, false))
-	
+
 	a := ArrayType{ElementType: StructType{Fields: []StructField{{Name: "f1", Type: PrimitiveType{Kind: String}}}}}
 	assert.NotEmpty(t, a.Pretty(0, false))
-	
+
 	d := DecimalType{Precision: 10, Scale: 2}
 	assert.Equal(t, "decimal(10,2)", d.GlueType())
 	assert.Equal(t, "decimal(10,2)", d.Pretty(0, false))
