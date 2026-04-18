@@ -25,7 +25,7 @@ type leafPlan struct {
 func NewRowPlanner(schema *parquet.Schema, root parquet.Node) *RowPlanner {
 	p := &RowPlanner{schema: schema}
 	p.leaves = p.buildLeafPlans(root, nil, 0, 0)
-	
+
 	// Map schema column paths to their index
 	schemaCols := schema.Columns() // Returns [][]string
 	for i, colPath := range schemaCols {
@@ -35,12 +35,12 @@ func NewRowPlanner(schema *parquet.Schema, root parquet.Node) *RowPlanner {
 			}
 		}
 	}
-	
+
 	// Sort leaves by column index to ensure we emit parquet.Values in order
 	sort.Slice(p.leaves, func(i, j int) bool {
 		return p.leaves[i].index < p.leaves[j].index
 	})
-	
+
 	return p
 }
 
@@ -77,7 +77,7 @@ func (p *RowPlanner) Build(record map[string]any, buf []parquet.Value) (parquet.
 	row := make(parquet.Row, 0, len(p.leaves))
 	for _, leaf := range p.leaves {
 		val := getValue(record, leaf.path)
-		
+
 		var pVal parquet.Value
 		if val == nil {
 			pVal = parquet.ValueOf(nil).Level(0, leaf.maxDef-1, leaf.index)

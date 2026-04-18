@@ -117,12 +117,29 @@ func RunWithDeps(ctx context.Context, cfg Config, deps Deps) (*Report, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading schema file: %w", err)
 		}
-		if err := json.Unmarshal(data, &finalCols); err != nil {
+		var intermediate []struct {
+			Name    string `json:"name"`
+			Type    string `json:"type"`
+			Comment string `json:"comment"`
+		}
+		if err := json.Unmarshal(data, &intermediate); err != nil {
 			return nil, fmt.Errorf("unmarshaling schema file: %w", err)
+		}
+		for _, col := range intermediate {
+			dt, err := schema.ParseType(col.Type)
+			if err != nil {
+				return nil, fmt.Errorf("parsing type for column %s: %w", col.Name, err)
+			}
+			finalCols = append(finalCols, schema.Column{
+				Name:    col.Name,
+				Type:    dt,
+				Comment: col.Comment,
+			})
 		}
 	} else {
 		finalCols = inferrer.Finalize()
 	}
+
 
 	if cfg.InferOnly {
 		enc := json.NewEncoder(os.Stdout)

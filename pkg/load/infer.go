@@ -22,7 +22,7 @@ type fieldObs struct {
 	listElement     *fieldObs
 	mapKey          *fieldObs
 	mapValue        *fieldObs
-	
+
 	// For map vs struct heuristic
 	distinctKeysets map[string]int64 // marshaled sorted keys -> count
 }
@@ -125,7 +125,7 @@ func (o *fieldObs) observeMap(m map[string]any) {
 // Finalize produces the final inferred schema.
 func (i *Inferrer) Finalize() []schema.Column {
 	cols := make([]schema.Column, 0, len(i.root.children))
-	
+
 	names := make([]string, 0, len(i.root.children))
 	for n := range i.root.children {
 		names = append(names, n)
