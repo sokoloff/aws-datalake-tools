@@ -137,23 +137,38 @@ func (w *RollingWriter) WriteConvertedRowGroup(rg parquet.RowGroup, conv parquet
 	// We roll if row count is high enough to likely meet the target size,
 	// or after a fixed number of rows to keep memory in check.
 	// Assuming a conservative 512 bytes per row, 128MB is ~250k rows.
+	return nil
+}
+
+// WriteRows writes a batch of parquet rows to the current output file.
+func (w *RollingWriter) WriteRows(rows []parquet.Row) (int, error) {
+	n, err := w.curWriter.WriteRows(rows)
+	if err != nil {
+		return n, fmt.Errorf("writing rows: %w", err)
+	}
+
+	w.curRows += int64(n)
+	w.totalRows += int64(n)
+
+	// Periodically flush to check size, but not every row.
 	if w.curRows >= 10000 {
 		if err := w.curWriter.Flush(); err != nil {
-			return fmt.Errorf("flush writer: %w", err)
+			return n, fmt.Errorf("flush writer: %w", err)
 		}
 		info, err := w.curFile.Stat()
 		if err != nil {
-			return fmt.Errorf("stat temp file: %w", err)
+			return n, fmt.Errorf("stat temp file: %w", err)
 		}
 		if info.Size() >= w.rollBytes {
 			if err := w.roll(); err != nil {
-				return err
+				return n, err
 			}
 		}
 	}
 
-	return nil
+	return n, nil
 }
+
 
 // Outputs returns the list of uploaded keys.
 func (w *RollingWriter) Outputs() []string {
