@@ -30,6 +30,7 @@ type RollingWriter struct {
 	curWriter    *parquet.GenericWriter[any]
 	curRows      int64
 	totalRows    int64
+	totalBytes   int64
 	fileIndex    int
 	outputs      []string
 }
@@ -102,6 +103,7 @@ func (w *RollingWriter) roll() error {
 	}
 
 	w.outputs = append(w.outputs, key)
+	w.totalBytes += size
 
 	if err := w.curFile.Close(); err != nil {
 		return fmt.Errorf("closing temp file: %w", err)
@@ -131,18 +133,22 @@ func (w *RollingWriter) WriteConvertedRowGroup(rg parquet.RowGroup, conv parquet
 	w.curRows += n
 	w.totalRows += n
 
-	if err := w.curWriter.Flush(); err != nil {
-		return fmt.Errorf("flush writer: %w", err)
-	}
-
-	info, err := w.curFile.Stat()
-	if err != nil {
-		return fmt.Errorf("stat temp file: %w", err)
-	}
-
-	if info.Size() >= w.rollBytes {
-		if err := w.roll(); err != nil {
-			return err
+	// Periodically flush to check size, but not every time.
+	// We roll if row count is high enough to likely meet the target size,
+	// or after a fixed number of rows to keep memory in check.
+	// Assuming a conservative 512 bytes per row, 128MB is ~250k rows.
+	if w.curRows >= 10000 {
+		if err := w.curWriter.Flush(); err != nil {
+			return fmt.Errorf("flush writer: %w", err)
+		}
+		info, err := w.curFile.Stat()
+		if err != nil {
+			return fmt.Errorf("stat temp file: %w", err)
+		}
+		if info.Size() >= w.rollBytes {
+			if err := w.roll(); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -157,6 +163,11 @@ func (w *RollingWriter) Outputs() []string {
 // RowsWritten returns the total number of rows written across all files.
 func (w *RollingWriter) RowsWritten() int64 {
 	return w.totalRows
+}
+
+// TotalBytesWritten returns the total size of uploaded files in bytes.
+func (w *RollingWriter) TotalBytesWritten() int64 {
+	return w.totalBytes
 }
 
 // Close finalizes any pending writes, uploads the final part if it has rows, and cleans up.

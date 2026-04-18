@@ -21,3 +21,6 @@ vendor/
 
 # Temporary
 tmp/
+
+# Test
+coverage.*
