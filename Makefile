@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X github.com/sokoloff/aws-datalake-tools/internal/cli.Version=$(VERSION)"
 
-.PHONY: all build build-lambda test lint clean tidy coverage
+.PHONY: all build build-lambda test test-integration test-all lint clean tidy coverage
 
 all: lint test build
 
@@ -13,6 +13,11 @@ build-lambda:
 
 test:
 	go test ./... -v -race
+
+test-integration:  ## requires Docker
+	go test -tags=integration ./test/integration/... -v -count=1 -timeout 10m
+
+test-all: test test-integration
 
 coverage:
 	go test -coverprofile=coverage.out ./...

@@ -11,8 +11,9 @@ import (
 )
 
 type Config struct {
-	Region  string
-	Profile string
+	Region       string
+	Profile      string
+	UsePathStyle bool
 }
 
 type Clients struct {
@@ -38,8 +39,15 @@ func New(ctx context.Context, cfg Config) (*Clients, error) {
 		return nil, err
 	}
 
+	s3Opts := []func(*s3.Options){}
+	if cfg.UsePathStyle {
+		s3Opts = append(s3Opts, func(o *s3.Options) {
+			o.UsePathStyle = true
+		})
+	}
+
 	return &Clients{
-		S3:        s3.NewFromConfig(awsCfg),
+		S3:        s3.NewFromConfig(awsCfg, s3Opts...),
 		Glue:      glue.NewFromConfig(awsCfg),
 		DynamoDB:  dynamodb.NewFromConfig(awsCfg),
 		AWSConfig: awsCfg,
