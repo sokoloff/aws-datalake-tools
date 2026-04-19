@@ -8,6 +8,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
+// ConvertAttributeMap converts a map of DynamoDB AttributeValues to a standard Go map[string]any.
+func ConvertAttributeMap(avMap map[string]types.AttributeValue) map[string]any {
+	result := make(map[string]any, len(avMap))
+	for k, av := range avMap {
+		result[k] = convertAV(av)
+	}
+	return result
+}
+
 // ParseRecord parses a DynamoDB JSON line into a map of standard Go types.
 func ParseRecord(line []byte) (map[string]any, error) {
 	// Step 1: Parse the top-level "Item" wrapper
@@ -25,12 +34,7 @@ func ParseRecord(line []byte) (map[string]any, error) {
 	}
 
 	// Step 3: Convert types.AttributeValue to map[string]any recursively
-	result := make(map[string]any, len(avMap))
-	for k, av := range avMap {
-		result[k] = convertAV(av)
-	}
-
-	return result, nil
+	return ConvertAttributeMap(avMap), nil
 }
 
 func convertAV(av types.AttributeValue) any {
