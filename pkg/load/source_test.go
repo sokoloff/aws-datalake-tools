@@ -46,7 +46,7 @@ func TestLocalDumpSource(t *testing.T) {
 
 	summary, err := src.ReadManifestSummary(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), summary.ItemCount)
+	assert.Equal(t, int64(3), summary.ItemCount)
 
 	entries, err := src.ReadManifestFiles(context.Background())
 	require.NoError(t, err)

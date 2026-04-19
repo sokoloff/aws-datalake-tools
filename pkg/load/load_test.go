@@ -68,7 +68,7 @@ func TestLoad_FullRun(t *testing.T) {
 	report, err := RunWithDeps(context.Background(), cfg, deps)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(1), report.RecordsRead)
+	assert.Equal(t, int64(3), report.RecordsRead)
 	assert.Len(t, report.OutputFiles, 1)
 
 	outPath := filepath.Join(tmpOut, filepath.Base(report.OutputFiles[0]))
@@ -76,9 +76,9 @@ func TestLoad_FullRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	mg.AssertExpectations(t)
-}
+	}
 
-func TestLoad_InferOnly(t *testing.T) {
+	func TestLoad_InferOnly(t *testing.T) {
 	cfg := Config{
 		InputURI:  "testdata",
 		OutputURI: "s3://ignored/",
@@ -92,9 +92,9 @@ func TestLoad_InferOnly(t *testing.T) {
 
 	report, err := RunWithDeps(context.Background(), cfg, deps)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), report.RecordsRead)
-	assert.Len(t, report.Schema, 2) // id, val
-}
+	assert.Equal(t, int64(3), report.RecordsRead)
+	assert.Len(t, report.Schema, 13) // id, str, int, float, bool, null, bin, ss, ns, bs, list, map, extra
+	}
 
 func TestLoad_WithSchemaFile(t *testing.T) {
 	schemaFile := filepath.Join(t.TempDir(), "schema.json")
