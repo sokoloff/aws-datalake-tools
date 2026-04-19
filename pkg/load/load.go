@@ -23,17 +23,18 @@ import (
 )
 
 type Config struct {
-	InputURI        string
-	OutputURI       string
-	Database        string
-	Table           string
-	SchemaFile      string
-	InferOnly       bool
-	SampleSize      int
-	TargetSizeMB    int64
-	Partition       string // auto, none, or YYYY-MM-DD
-	ReplaceIfExists bool
-	DryRun          bool
+	InputURI              string
+	OutputURI             string
+	Database              string
+	Table                 string
+	SchemaFile            string
+	InferOnly             bool
+	SampleSize            int
+	TargetSizeMB          int64
+	Partition             string // auto, none, or YYYY-MM-DD
+	ReplaceIfExists       bool
+	DryRun                bool
+	InjectMetadataColumns bool
 }
 
 type Deps struct {
@@ -140,6 +141,10 @@ func RunWithDeps(ctx context.Context, cfg Config, deps Deps) (*Report, error) {
 		finalCols = inferrer.Finalize()
 	}
 
+	if cfg.InjectMetadataColumns {
+		finalCols = append(finalCols, schema.Column{Name: "eventname", Type: schema.PrimitiveType{Kind: schema.String}})
+		finalCols = append(finalCols, schema.Column{Name: "eventcreationdatetime", Type: schema.PrimitiveType{Kind: schema.Timestamp}})
+	}
 
 	if cfg.InferOnly {
 		enc := json.NewEncoder(os.Stdout)
@@ -199,19 +204,33 @@ func RunWithDeps(ctx context.Context, cfg Config, deps Deps) (*Report, error) {
 			pkCols = append(pkCols, schema.Column{Name: k, Type: schema.PrimitiveType{Kind: schema.String}})
 		}
 
+		tableParams := make(map[string]string)
+
 		tableInput := schema.CreateTableInput{
 			Database:      cfg.Database,
 			Table:         cfg.Table,
 			Location:      cfg.OutputURI,
 			Columns:       finalCols,
 			PartitionKeys: pkCols,
+			Parameters:    tableParams,
 			Replace:       cfg.ReplaceIfExists,
 		}
 
-		// Note: PartitionKeys logic in schema.CreateTable might need adjustment
-		// but we'll use existing pkg/schema logic.
 		if err := schema.CreateTable(ctx, deps.Glue, tableInput); err != nil {
 			return nil, fmt.Errorf("registering glue table: %w", err)
+		}
+
+		if !partition.None {
+			partLocation := partition.GetPartitionPath(cfg.OutputURI)
+			err := schema.CreatePartition(ctx, deps.Glue, schema.CreatePartitionInput{
+				Database:        cfg.Database,
+				Table:           cfg.Table,
+				PartitionValues: []string{partition.Year, partition.Month, partition.Day},
+				Location:        partLocation,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("adding partition to glue table: %w", err)
+			}
 		}
 	}
 

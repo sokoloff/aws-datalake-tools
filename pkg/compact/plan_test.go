@@ -29,6 +29,9 @@ func (m *mockGlueAPI) GetTable(ctx context.Context, params *glue.GetTableInput, 
 func (m *mockGlueAPI) CreateTable(ctx context.Context, params *glue.CreateTableInput, optFns ...func(*glue.Options)) (*glue.CreateTableOutput, error) {
 	return nil, nil
 }
+func (m *mockGlueAPI) CreatePartition(ctx context.Context, params *glue.CreatePartitionInput, optFns ...func(*glue.Options)) (*glue.CreatePartitionOutput, error) {
+	return nil, nil
+}
 func (m *mockGlueAPI) UpdateTable(ctx context.Context, params *glue.UpdateTableInput, optFns ...func(*glue.Options)) (*glue.UpdateTableOutput, error) {
 	return nil, nil
 }

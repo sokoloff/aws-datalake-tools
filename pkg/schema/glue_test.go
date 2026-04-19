@@ -26,6 +26,11 @@ func (m *mockGlueAPI) CreateTable(ctx context.Context, params *glue.CreateTableI
 	return args.Get(0).(*glue.CreateTableOutput), args.Error(1)
 }
 
+func (m *mockGlueAPI) CreatePartition(ctx context.Context, params *glue.CreatePartitionInput, optFns ...func(*glue.Options)) (*glue.CreatePartitionOutput, error) {
+	args := m.Called(ctx, params)
+	return args.Get(0).(*glue.CreatePartitionOutput), args.Error(1)
+}
+
 func (m *mockGlueAPI) UpdateTable(ctx context.Context, params *glue.UpdateTableInput, optFns ...func(*glue.Options)) (*glue.UpdateTableOutput, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(*glue.UpdateTableOutput), args.Error(1)

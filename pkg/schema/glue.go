@@ -2,6 +2,7 @@ package schema
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,6 +16,7 @@ type GlueTableAPI interface {
 	CreateTable(ctx context.Context, params *glue.CreateTableInput, optFns ...func(*glue.Options)) (*glue.CreateTableOutput, error)
 	UpdateTable(ctx context.Context, params *glue.UpdateTableInput, optFns ...func(*glue.Options)) (*glue.UpdateTableOutput, error)
 	DeleteTable(ctx context.Context, params *glue.DeleteTableInput, optFns ...func(*glue.Options)) (*glue.DeleteTableOutput, error)
+	CreatePartition(ctx context.Context, params *glue.CreatePartitionInput, optFns ...func(*glue.Options)) (*glue.CreatePartitionOutput, error)
 }
 
 // FetchTableSchema retrieves the schema for a Glue table.
@@ -61,6 +63,7 @@ type CreateTableInput struct {
 	Columns       []Column
 	PartitionKeys []Column
 	Location      string
+	Parameters    map[string]string
 	Replace       bool
 }
 
@@ -71,6 +74,14 @@ func CreateTable(ctx context.Context, api GlueTableAPI, in CreateTableInput) err
 			DatabaseName: aws.String(in.Database),
 			Name:         aws.String(in.Table),
 		})
+	}
+
+	params := map[string]string{
+		"EXTERNAL":       "TRUE",
+		"classification": "parquet",
+	}
+	for k, v := range in.Parameters {
+		params[k] = v
 	}
 
 	input := &glue.CreateTableInput{
@@ -91,15 +102,54 @@ func CreateTable(ctx context.Context, api GlueTableAPI, in CreateTableInput) err
 				},
 			},
 			PartitionKeys: columnsToGlue(in.PartitionKeys),
-			Parameters: map[string]string{
-				"EXTERNAL": "TRUE",
-			},
+			Parameters:    params,
 		},
 	}
+
 
 	_, err := api.CreateTable(ctx, input)
 	if err != nil {
 		return fmt.Errorf("creating table %s.%s: %w", in.Database, in.Table, err)
+	}
+	return nil
+}
+
+// CreatePartitionInput contains parameters for creating a new partition in a Glue table.
+type CreatePartitionInput struct {
+	Database       string
+	Table          string
+	PartitionValues []string
+	Location       string
+}
+
+// CreatePartition creates a new partition in an existing Glue table.
+func CreatePartition(ctx context.Context, api GlueTableAPI, in CreatePartitionInput) error {
+	input := &glue.CreatePartitionInput{
+		DatabaseName: aws.String(in.Database),
+		TableName:    aws.String(in.Table),
+		PartitionInput: &gluetypes.PartitionInput{
+			Values: in.PartitionValues,
+			StorageDescriptor: &gluetypes.StorageDescriptor{
+				Location: aws.String(in.Location),
+				InputFormat:  aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
+				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
+				SerdeInfo: &gluetypes.SerDeInfo{
+					SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+					Parameters: map[string]string{
+						"serialization.format": "1",
+					},
+				},
+			},
+		},
+	}
+
+	_, err := api.CreatePartition(ctx, input)
+	if err != nil {
+		var alreadyExists *gluetypes.AlreadyExistsException
+		if errors.As(err, &alreadyExists) {
+			return nil
+		}
+		return fmt.Errorf("creating partition %v for table %s.%s: %w", in.PartitionValues, in.Database, in.Table, err)
 	}
 	return nil
 }

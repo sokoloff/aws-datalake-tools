@@ -6,17 +6,18 @@ import (
 )
 
 var loadFlags struct {
-	input           string
-	output          string
-	database        string
-	table           string
-	schemaFile      string
-	inferOnly       bool
-	sampleSize      int
-	targetSizeMB    int64
-	partition       string
-	replaceIfExists bool
-	dryRun          bool
+	input                 string
+	output                string
+	database              string
+	table                 string
+	schemaFile            string
+	inferOnly             bool
+	sampleSize            int
+	targetSizeMB          int64
+	partition             string
+	replaceIfExists       bool
+	dryRun                bool
+	injectMetadataColumns bool
 }
 
 var loadCmd = &cobra.Command{
@@ -24,17 +25,18 @@ var loadCmd = &cobra.Command{
 	Short: "Load a DynamoDB S3 export into partitioned Parquet",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := load.Config{
-			InputURI:        loadFlags.input,
-			OutputURI:       loadFlags.output,
-			Database:        loadFlags.database,
-			Table:           loadFlags.table,
-			SchemaFile:      loadFlags.schemaFile,
-			InferOnly:       loadFlags.inferOnly,
-			SampleSize:      loadFlags.sampleSize,
-			TargetSizeMB:    loadFlags.targetSizeMB,
-			Partition:       loadFlags.partition,
-			ReplaceIfExists: loadFlags.replaceIfExists,
-			DryRun:          loadFlags.dryRun,
+			InputURI:              loadFlags.input,
+			OutputURI:             loadFlags.output,
+			Database:              loadFlags.database,
+			Table:                 loadFlags.table,
+			SchemaFile:            loadFlags.schemaFile,
+			InferOnly:             loadFlags.inferOnly,
+			SampleSize:            loadFlags.sampleSize,
+			TargetSizeMB:          loadFlags.targetSizeMB,
+			Partition:             loadFlags.partition,
+			ReplaceIfExists:       loadFlags.replaceIfExists,
+			DryRun:                loadFlags.dryRun,
+			InjectMetadataColumns: loadFlags.injectMetadataColumns,
 		}
 		return load.Run(cmd.Context(), cfg)
 	},
@@ -52,6 +54,7 @@ func init() {
 	loadCmd.Flags().StringVar(&loadFlags.partition, "partition", "auto", "Partition mode: auto, none, or YYYY-MM-DD")
 	loadCmd.Flags().BoolVar(&loadFlags.replaceIfExists, "replace-if-exists", false, "Replace existing Glue table")
 	loadCmd.Flags().BoolVar(&loadFlags.dryRun, "dry-run", false, "Dry run (no S3/Glue writes)")
+	loadCmd.Flags().BoolVar(&loadFlags.injectMetadataColumns, "inject-metadata-columns", true, "Inject eventname and eventcreationdatetime columns")
 
 	_ = loadCmd.MarkFlagRequired("input")
 	_ = loadCmd.MarkFlagRequired("output")

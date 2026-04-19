@@ -44,6 +44,14 @@ func (m *mockGlue) UpdateTable(ctx context.Context, input *glue.UpdateTableInput
 	return nil, args.Error(1)
 }
 
+func (m *mockGlue) CreatePartition(ctx context.Context, input *glue.CreatePartitionInput, optFns ...func(*glue.Options)) (*glue.CreatePartitionOutput, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*glue.CreatePartitionOutput), args.Error(1)
+}
+
 func TestLoad_FullRun(t *testing.T) {
 	tmpOut, err := os.MkdirTemp("", "load-test-out-*")
 	require.NoError(t, err)
