@@ -206,14 +206,6 @@ func FormatDiff(w io.Writer, d *DiffOutput) error {
 	return tw.Flush()
 }
 
-// S3ClientAPI is a helper interface that combines S3 and Glue APIs for convenience.
-// But we'll use separate ones in the functions.
-type S3ClientAPI interface {
-	S3GetObjectAPI
-}
-type GlueClientAPI interface {
-	GlueTableAPI
-}
 type DescribeConfig struct {
 	Database string
 	Table    string
