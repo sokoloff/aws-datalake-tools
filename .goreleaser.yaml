@@ -1,0 +1,65 @@
+version: 2
+
+project_name: aws-datalake-tools
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: datalake
+    main: ./cmd/datalake
+    binary: datalake
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/sokoloff/aws-datalake-tools/internal/cli.Version={{.Version}}
+
+  - id: stream-processor
+    main: ./cmd/stream-processor
+    binary: bootstrap
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/sokoloff/aws-datalake-tools/internal/cli.Version={{.Version}}
+
+archives:
+  - id: datalake-archive
+    builds:
+      - datalake
+    format: tar.gz
+    name_template: "datalake_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+  - id: stream-processor-archive
+    builds:
+      - stream-processor
+    format: zip
+    name_template: "stream-processor_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

@@ -28,7 +28,7 @@ lint:
 	golangci-lint run ./...
 
 clean:
-	rm -rf bin/ bootstrap
+	rm -rf bin/ bootstrap dist/
 
 tidy:
 	go mod tidy

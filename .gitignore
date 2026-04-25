@@ -21,6 +21,7 @@ vendor/
 
 # Temporary
 tmp/
+dist/
 
 # Test
 coverage.*
